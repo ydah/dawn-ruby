@@ -1,0 +1,16 @@
+*.gem
+/.bundle
+/vendor/bundle
+/pkg
+/tmp
+/log
+/coverage
+/.rspec_status
+/ext/dawn/Makefile
+/ext/dawn/lib/*
+!/ext/dawn/lib/.gitkeep
+.DS_Store
+.idea/
+.vscode/
+Gemfile.lock
+examples/output/
