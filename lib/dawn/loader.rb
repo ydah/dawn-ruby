@@ -2,16 +2,10 @@
 
 require "rbconfig"
 require_relative "errors"
+require_relative "upstream"
 
 module Dawn
   module Loader
-    LIBRARY_NAMES = {
-      "linux" => ["libdawn.so", "libwebgpu_dawn.so"],
-      "darwin" => ["libdawn.dylib", "libwebgpu_dawn.dylib"],
-      "mingw" => ["dawn.dll", "webgpu_dawn.dll"],
-      "mswin" => ["dawn.dll", "webgpu_dawn.dll"]
-    }.freeze
-
     class << self
       def activate!
         ENV["WGPU_LIB_PATH"] = library_path
@@ -45,7 +39,7 @@ module Dawn
       end
 
       def cache_dir
-        File.join(Dir.home, ".cache", "dawn-ruby", Dawn::VERSION)
+        Dawn::Upstream.cache_dir
       end
 
       private
@@ -66,11 +60,7 @@ module Dawn
       end
 
       def library_names
-        host = RbConfig::CONFIG["host_os"]
-        key = LIBRARY_NAMES.keys.find { |candidate| host.include?(candidate) }
-        raise Dawn::LoadError, "Unsupported OS for Dawn loader: #{host}" unless key
-
-        LIBRARY_NAMES.fetch(key)
+        Dawn::Upstream.library_names(host_os: RbConfig::CONFIG["host_os"])
       end
 
       def bundled_library_dir

@@ -4,6 +4,7 @@ require "tmpdir"
 require_relative "../spec_helper"
 require_relative "../../lib/dawn/version"
 require_relative "../../lib/dawn/errors"
+require_relative "../../lib/dawn/upstream"
 require_relative "../../lib/dawn/loader"
 
 RSpec.describe Dawn::Loader do
@@ -49,6 +50,10 @@ RSpec.describe Dawn::Loader do
         expect(roots).not_to include(File.join(dir, "ext", "dawn", "lib"))
       end
     end
+  end
+
+  it "shares the upstream cache directory" do
+    expect(described_class.cache_dir).to eq(Dawn::Upstream.cache_dir)
   end
 
   it "raises a Dawn::LoadError when no candidates exist" do

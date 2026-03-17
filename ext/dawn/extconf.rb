@@ -1,59 +1,101 @@
 # frozen_string_literal: true
 
+require "digest"
 require "fileutils"
 require "net/http"
 require "uri"
+require_relative "../../lib/dawn/upstream"
 
-DAWN_VERSION = ENV.fetch("DAWN_VERSION", "v0.0.0")
-CACHE_DIR = File.join(Dir.home, ".cache", "dawn-ruby", DAWN_VERSION)
-LIB_DIR = File.join(CACHE_DIR, "lib")
+def cache_dir
+  Dawn::Upstream.cache_dir
+end
 
-PLATFORM_MAP = {
-  /x86_64-linux/ => ["libdawn.so", "libwebgpu_dawn.so"],
-  /aarch64-linux/ => ["libdawn.so", "libwebgpu_dawn.so"],
-  /arm64-darwin/ => ["libdawn.dylib", "libwebgpu_dawn.dylib"],
-  /x86_64-darwin/ => ["libdawn.dylib", "libwebgpu_dawn.dylib"],
-  /mingw|mswin/ => ["dawn.dll", "webgpu_dawn.dll"]
-}.freeze
-
-def detect_library_names
-  PLATFORM_MAP.each do |pattern, names|
-    return names if RUBY_PLATFORM =~ pattern
-  end
-
-  abort "Unsupported platform for Dawn: #{RUBY_PLATFORM}"
+def library_dir
+  Dawn::Upstream.library_dir
 end
 
 def already_available?(names)
-  explicit = ENV["DAWN_LIBRARY_PATH"]
+  explicit = ENV["DAWN_LIBRARY_PATH"] || ENV["WGPU_LIB_PATH"]
   return true if explicit && File.file?(explicit)
 
-  names.any? { |name| File.file?(File.join(LIB_DIR, name)) }
+  names.any? { |name| File.file?(File.join(library_dir, name)) }
+end
+
+def download_requested?
+  ENV["DAWN_DOWNLOAD_PREBUILT"] == "1" || ENV["DAWN_PREBUILT_URL"]
+end
+
+def resolve_download_url
+  Dawn::Upstream.prebuilt_url
+rescue Dawn::LoadError => e
+  warn e.message
+  nil
 end
 
 def download_if_requested
-  return unless ENV["DAWN_PREBUILT_URL"]
+  return unless download_requested?
 
-  url = ENV["DAWN_PREBUILT_URL"]
-  archive = File.join(CACHE_DIR, File.basename(URI.parse(url).path))
+  url = resolve_download_url
+  return unless url
 
-  FileUtils.mkdir_p(CACHE_DIR)
-  FileUtils.mkdir_p(LIB_DIR)
+  uri = URI.parse(url)
+  basename = File.basename(uri.path)
+  basename = Dawn::Upstream.prebuilt_archive_name if basename.nil? || basename.empty? || basename == "/"
+  archive = File.join(cache_dir, basename)
 
-  http = Net::HTTP.new(URI(url).host, URI(url).port)
-  http.use_ssl = true if URI(url).scheme == "https"
+  FileUtils.mkdir_p(cache_dir)
 
-  request = Net::HTTP::Get.new(URI(url))
-  response = http.request(request)
-  abort "Failed to download Dawn archive: #{url}" unless response.is_a?(Net::HTTPSuccess)
+  download_archive(url, archive)
+  verify_archive!(archive)
+  extract_archive(archive, cache_dir)
+end
 
-  File.binwrite(archive, response.body)
+def download_archive(url, destination, limit: 5)
+  raise "Too many redirects while downloading #{url}" if limit.zero?
 
-  system("tar", "-xf", archive, "-C", CACHE_DIR)
+  uri = URI.parse(url)
+  request = Net::HTTP::Get.new(uri)
+
+  Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https") do |http|
+    http.request(request) do |response|
+      case response
+      when Net::HTTPSuccess
+        File.open(destination, "wb") do |file|
+          response.read_body { |chunk| file.write(chunk) }
+        end
+      when Net::HTTPRedirection
+        redirected = URI.join(url, response["location"]).to_s
+        download_archive(redirected, destination, limit: limit - 1)
+      else
+        raise "Failed to download Dawn archive: #{url} (#{response.code} #{response.message})"
+      end
+    end
+  end
+end
+
+def verify_archive!(archive)
+  expected = ENV["DAWN_PREBUILT_SHA256"]
+  return if expected.nil? || expected.empty?
+
+  actual = Digest::SHA256.file(archive).hexdigest
+  return if actual == expected
+
+  raise "Downloaded Dawn archive checksum mismatch for #{archive}"
+end
+
+def extract_archive(archive, destination)
+  success =
+    if archive.end_with?(".zip")
+      system("unzip", "-oq", archive, "-d", destination)
+    else
+      system("tar", "-xf", archive, "-C", destination)
+    end
+
+  raise "Failed to extract Dawn archive: #{archive}" unless success
 end
 
 def write_makefile
-  File.write("Makefile", <<~MAKEFILE)
+  File.write(File.join(__dir__, "Makefile"), <<~MAKEFILE)
     .PHONY: install clean
 
     install:
@@ -64,16 +106,17 @@ def write_makefile
   MAKEFILE
 end
 
-names = detect_library_names
-download_if_requested
+names = Dawn::Upstream.library_names
+download_if_requested unless already_available?(names)
 
 unless already_available?(names)
   warn <<~MSG
     Dawn shared library was not found.
     Provide one of:
       1) Set DAWN_LIBRARY_PATH to an existing Dawn shared library.
-      2) Set DAWN_PREBUILT_URL to a tar archive URL containing Dawn libraries.
-      3) Place a library at #{File.join(LIB_DIR, names.first)}.
+      2) Run `DAWN_DOWNLOAD_PREBUILT=1 bundle exec ruby ext/dawn/extconf.rb`.
+      3) Set DAWN_PREBUILT_URL to a Dawn prebuilt archive URL.
+      4) Place a library at #{File.join(library_dir, names.first)}.
   MSG
 end
 
