@@ -14,12 +14,12 @@ module Dawn
 
     class << self
       def activate!
-        ENV["WGPU_LIB_PATH"] = resolve_library_path
+        ENV["WGPU_LIB_PATH"] = library_path
       end
 
       def library_path
         path = ENV["DAWN_LIBRARY_PATH"] || ENV["WGPU_LIB_PATH"]
-        return path if path && File.exist?(path)
+        return path if path && File.file?(path)
 
         resolve_library_path
       end
@@ -61,7 +61,7 @@ module Dawn
           File.join(cache_dir, "lib"),
           "/usr/local/lib",
           "/usr/lib",
-          File.join(Dir.pwd, "ext", "dawn", "lib")
+          bundled_library_dir
         ].compact.uniq
       end
 
@@ -71,6 +71,10 @@ module Dawn
         raise Dawn::LoadError, "Unsupported OS for Dawn loader: #{host}" unless key
 
         LIBRARY_NAMES.fetch(key)
+      end
+
+      def bundled_library_dir
+        File.expand_path("../../ext/dawn/lib", __dir__)
       end
     end
   end
