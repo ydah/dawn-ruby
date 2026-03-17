@@ -1,13 +1,14 @@
 # frozen_string_literal: true
 
-require "dawn"
+require_relative "support/offscreen_renderer"
+require_relative "support/triangle_scene"
 
-instance = Dawn::Instance.new
-adapter = instance.request_adapter
-device = adapter.request_device
+WIDTH = 512
+HEIGHT = 512
+OUTPUT_PATH = File.expand_path("output/hello_triangle.ppm", __dir__)
 
-puts "Triangle sample scaffold initialized on #{adapter.summary}"
-
-device.release
-adapter.release
-instance.release
+DawnExamples::OffscreenRenderer.with(width: WIDTH, height: HEIGHT) do |renderer|
+  DawnExamples::TriangleScene.render(renderer)
+  renderer.save_to_ppm(OUTPUT_PATH)
+  puts "Rendered hello triangle to #{OUTPUT_PATH} on #{renderer.adapter.summary}"
+end
