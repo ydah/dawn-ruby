@@ -56,7 +56,7 @@ Library resolution order:
 
 1. `DAWN_LIBRARY_PATH`
 2. `DAWN_LIBRARY_DIR` + known library names
-3. `~/.cache/dawn-ruby/<version>/lib`
+3. `~/.cache/dawn-ruby/<DAWN_VERSION>/lib`
 4. `/usr/local/lib`, `/usr/lib`
 5. `ext/dawn/lib` in current project
 
@@ -70,7 +70,7 @@ export DAWN_LIBRARY_PATH=/absolute/path/to/libdawn.so
 
 ### Option B: Use extconf helper download path
 
-`ext/dawn/extconf.rb` supports `DAWN_PREBUILT_URL` and caches to:
+`ext/dawn/extconf.rb` supports official Dawn prebuilt downloads and caches to:
 
 ```text
 ~/.cache/dawn-ruby/<DAWN_VERSION>/lib
@@ -79,10 +79,17 @@ export DAWN_LIBRARY_PATH=/absolute/path/to/libdawn.so
 Example:
 
 ```bash
-export DAWN_VERSION=v0.0.0
-export DAWN_PREBUILT_URL=https://example.com/dawn-prebuilt.tar
+export DAWN_VERSION=7187
+export DAWN_DOWNLOAD_PREBUILT=1
 bundle exec ruby ext/dawn/extconf.rb
 ```
+
+Optional overrides:
+
+- `DAWN_PREBUILT_URL` for a custom archive URL
+- `DAWN_PREBUILT_MIRROR` for a custom GitHub release mirror
+- `DAWN_BUILD_TYPE=Debug` for debug archives
+- `DAWN_PREBUILT_SHA256` for checksum verification
 
 ## Quick Start
 
@@ -150,6 +157,7 @@ ruby examples/render_pyramid_3d.rb
 bundle install
 bundle exec rspec
 bundle exec rake build
+ruby script/verify_upstream_mappings.rb
 ```
 
 ## License

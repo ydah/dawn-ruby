@@ -91,6 +91,8 @@ module Dawn
   end
 
   module FeatureNameExt
+    ALIASES = %i[FRAME_BUFFER_FETCH NORM16_TEXTURE_FORMATS].freeze
+
     STANDARD = {
       core_features_and_limits: 0x00000001,
       depth_clip_control: 0x00000002,
@@ -175,6 +177,11 @@ module Dawn
     SHARED_TEXTURE_MEMORY_D3D12_RESOURCE = 0x00050039
     CHROMIUM_EXPERIMENTAL_SAMPLING_RESOURCE_TABLE = 0x0005003A
     CHROMIUM_EXPERIMENTAL_SUBGROUP_SIZE_CONTROL = 0x0005003B
+    ATOMIC_VEC2U_MIN_MAX = 0x0005003C
+    UNORM16_FORMATS_FOR_EXTERNAL_TEXTURE = 0x0005003D
+    OPAQUE_Y_CB_CR_ANDROID_FOR_EXTERNAL_TEXTURE = 0x0005003E
+    UNORM16_FILTERABLE = 0x0005003F
+    RENDER_PASS_RENDER_AREA = 0x00050040
 
     FRAME_BUFFER_FETCH = FRAMEBUFFER_FETCH
     NORM16_TEXTURE_FORMATS = UNORM16_TEXTURE_FORMATS
@@ -200,7 +207,7 @@ module Dawn
           map[value] = name
         end.tap do |map|
           constants(false).sort.each do |name|
-            next if name == :STANDARD
+            next if name == :STANDARD || name == :ALIASES || ALIASES.include?(name)
 
             value = const_get(name)
             next unless value.is_a?(Integer)

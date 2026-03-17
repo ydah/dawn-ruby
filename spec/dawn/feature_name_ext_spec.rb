@@ -15,6 +15,9 @@ RSpec.describe Dawn::FeatureNameExt do
     expect(described_class.symbol_for(described_class::IMPLICIT_DEVICE_SYNCHRONIZATION)).to eq(
       :implicit_device_synchronization
     )
+    expect(described_class.symbol_for(described_class::UNORM16_TEXTURE_FORMATS)).to eq(:unorm16_texture_formats)
+    expect(described_class.symbol_for(described_class::ATOMIC_VEC2U_MIN_MAX)).to eq(:atomic_vec2u_min_max)
+    expect(described_class.symbol_for(described_class::RENDER_PASS_RENDER_AREA)).to eq(:render_pass_render_area)
   end
 
   it "maps latest WebGPU header feature names back to values" do
@@ -28,5 +31,7 @@ RSpec.describe Dawn::FeatureNameExt do
     expect(described_class.value_for(:implicit_device_synchronization)).to eq(
       described_class::IMPLICIT_DEVICE_SYNCHRONIZATION
     )
+    expect(described_class.value_for(:atomic_vec2u_min_max)).to eq(described_class::ATOMIC_VEC2U_MIN_MAX)
+    expect(described_class.value_for(:render_pass_render_area)).to eq(described_class::RENDER_PASS_RENDER_AREA)
   end
 end
