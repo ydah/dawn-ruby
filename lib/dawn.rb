@@ -15,6 +15,7 @@ require_relative "dawn/native/enums_ext"
 require_relative "dawn/native/structs_ext"
 require_relative "dawn/native/functions_ext"
 require_relative "dawn/native/proc_table"
+Dawn::Native.set_procs!
 require_relative "dawn/toggles"
 require_relative "dawn/backend"
 require_relative "dawn/instance"
