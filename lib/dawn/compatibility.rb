@@ -7,6 +7,7 @@ module Dawn
         patch_instance_from_handle!
         patch_adapter_instance_tracking!
         patch_enumerate_adapters!
+        patch_feature_names!
         patch_device_poll!
         patch_queue_wait!
         patch_buffer_wait!
@@ -39,6 +40,24 @@ module Dawn
         end
 
         process_events_for_device(device)
+      end
+
+      def feature_names_from(supported)
+        return [] if supported[:feature_count].zero? || supported[:features].null?
+
+        supported[:features].read_array_of_uint32(supported[:feature_count]).map do |value|
+          Dawn::FeatureNameExt.symbol_for(value)
+        end
+      end
+
+      def normalize_feature_name(feature)
+        return feature if feature.is_a?(Symbol)
+
+        Dawn::FeatureNameExt.symbol_for(normalize_feature_value(feature))
+      end
+
+      def normalize_feature_value(feature)
+        Dawn::FeatureNameExt.value_for(feature)
       end
 
       def process_events_for_device(device)
@@ -114,6 +133,61 @@ module Dawn
             end
           end
         end
+      end
+
+      def patch_feature_names!
+        patch_adapter_feature_names!
+        patch_device_feature_names!
+        patch_device_feature_normalization!
+      end
+
+      def patch_adapter_feature_names!
+        return if WGPU::Adapter.method_defined?(:__dawn_features_without_patch)
+
+        WGPU::Adapter.class_eval do
+          alias_method :__dawn_features_without_patch, :features
+          alias_method :__dawn_has_feature_without_patch, :has_feature?
+
+          def features
+            supported = WGPU::Native::SupportedFeatures.new
+            WGPU::Native.wgpuAdapterGetFeatures(@handle, supported)
+            Dawn::Compatibility.feature_names_from(supported)
+          end
+
+          def has_feature?(feature)
+            features.include?(Dawn::Compatibility.normalize_feature_name(feature))
+          end
+        end
+      end
+
+      def patch_device_feature_names!
+        return if WGPU::Device.method_defined?(:__dawn_features_without_patch)
+
+        WGPU::Device.class_eval do
+          alias_method :__dawn_features_without_patch, :features
+          alias_method :__dawn_has_feature_without_patch, :has_feature?
+
+          def features
+            supported = WGPU::Native::SupportedFeatures.new
+            WGPU::Native.wgpuDeviceGetFeatures(@handle, supported)
+            Dawn::Compatibility.feature_names_from(supported)
+          end
+
+          def has_feature?(feature)
+            features.include?(Dawn::Compatibility.normalize_feature_name(feature))
+          end
+        end
+      end
+
+      def patch_device_feature_normalization!
+        singleton = WGPU::Device.singleton_class
+        return if singleton.private_method_defined?(:__dawn_normalize_feature_name_without_patch)
+
+        singleton.alias_method :__dawn_normalize_feature_name_without_patch, :normalize_feature_name
+        singleton.define_method(:normalize_feature_name) do |feature|
+          Dawn::Compatibility.normalize_feature_value(feature)
+        end
+        singleton.send(:private, :normalize_feature_name, :__dawn_normalize_feature_name_without_patch)
       end
 
       def patch_device_poll!

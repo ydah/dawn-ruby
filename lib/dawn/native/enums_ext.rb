@@ -91,6 +91,31 @@ module Dawn
   end
 
   module FeatureNameExt
+    STANDARD = {
+      core_features_and_limits: 0x00000001,
+      depth_clip_control: 0x00000002,
+      depth32_float_stencil8: 0x00000003,
+      texture_compression_bc: 0x00000004,
+      texture_compression_bc_sliced_3d: 0x00000005,
+      texture_compression_etc2: 0x00000006,
+      texture_compression_astc: 0x00000007,
+      texture_compression_astc_sliced_3d: 0x00000008,
+      timestamp_query: 0x00000009,
+      indirect_first_instance: 0x0000000A,
+      shader_f16: 0x0000000B,
+      rg11b10_ufloat_renderable: 0x0000000C,
+      bgra8_unorm_storage: 0x0000000D,
+      float32_filterable: 0x0000000E,
+      float32_blendable: 0x0000000F,
+      clip_distances: 0x00000010,
+      dual_source_blending: 0x00000011,
+      subgroups: 0x00000012,
+      texture_formats_tier1: 0x00000013,
+      texture_formats_tier2: 0x00000014,
+      primitive_index: 0x00000015,
+      texture_component_swizzle: 0x00000016
+    }.freeze
+
     DAWN_INTERNAL_USAGES = 0x00050000
     DAWN_MULTI_PLANAR_FORMATS = 0x00050001
     DAWN_NATIVE = 0x00050002
@@ -159,14 +184,37 @@ module Dawn
         feature_name_map.fetch(value, :"feature_#{value}")
       end
 
+      def value_for(feature)
+        return feature if feature.is_a?(Integer)
+
+        key = feature.to_s.strip.tr("-", "_").to_sym
+        feature_value_map.fetch(key) do
+          raise ArgumentError, "Unknown feature name: #{feature}"
+        end
+      end
+
       private
 
       def feature_name_map
-        @feature_name_map ||= constants(false).sort.each_with_object({}) do |name, map|
-          value = const_get(name)
-          next unless value.is_a?(Integer)
+        @feature_name_map ||= STANDARD.each_with_object({}) do |(name, value), map|
+          map[value] = name
+        end.tap do |map|
+          constants(false).sort.each do |name|
+            next if name == :STANDARD
 
-          map[value] ||= name.to_s.downcase.to_sym
+            value = const_get(name)
+            next unless value.is_a?(Integer)
+
+            map[value] ||= name.to_s.downcase.to_sym
+          end
+        end
+      end
+
+      def feature_value_map
+        @feature_value_map ||= begin
+          feature_name_map.each_with_object({}) do |(value, name), map|
+            map[name] ||= value
+          end
         end
       end
     end
