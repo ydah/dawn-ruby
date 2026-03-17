@@ -153,5 +153,22 @@ module Dawn
 
     FRAME_BUFFER_FETCH = FRAMEBUFFER_FETCH
     NORM16_TEXTURE_FORMATS = UNORM16_TEXTURE_FORMATS
+
+    class << self
+      def symbol_for(value)
+        feature_name_map.fetch(value, :"feature_#{value}")
+      end
+
+      private
+
+      def feature_name_map
+        @feature_name_map ||= constants(false).sort.each_with_object({}) do |name, map|
+          value = const_get(name)
+          next unless value.is_a?(Integer)
+
+          map[value] ||= name.to_s.downcase.to_sym
+        end
+      end
+    end
   end
 end
