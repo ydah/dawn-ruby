@@ -9,12 +9,23 @@ module Dawn
     end
 
     def request_adapter(**options)
-      adapter = @wgpu_instance.request_adapter(**options)
-      Dawn::Adapter.new(adapter)
+      wrap_adapter(@wgpu_instance.request_adapter(**options))
+    end
+
+    def request_adapter_async(**options)
+      @wgpu_instance.request_adapter_async(**options).then do |adapter|
+        wrap_adapter(adapter)
+      end
     end
 
     def enumerate_adapters(backends: nil)
-      @wgpu_instance.enumerate_adapters(backends: backends).map { |adapter| Dawn::Adapter.new(adapter) }
+      wrap_adapters(@wgpu_instance.enumerate_adapters(backends: backends))
+    end
+
+    def enumerate_adapters_async(backends: nil)
+      @wgpu_instance.enumerate_adapters_async(backends: backends).then do |adapters|
+        wrap_adapters(adapters)
+      end
     end
 
     def process_events
@@ -38,6 +49,17 @@ module Dawn
     end
 
     private
+
+    def wrap_adapter(adapter)
+      return nil unless adapter
+      return adapter if adapter.is_a?(Dawn::Adapter)
+
+      Dawn::Adapter.new(adapter)
+    end
+
+    def wrap_adapters(adapters)
+      adapters.map { |adapter| wrap_adapter(adapter) }
+    end
 
     def create_with_toggles(toggles)
       desc = WGPU::Native::InstanceDescriptor.new
