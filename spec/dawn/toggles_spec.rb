@@ -1,24 +1,18 @@
 # frozen_string_literal: true
 
 require_relative "../spec_helper"
-require "ffi"
 
-module WGPU
-  module Native
-    SType = FFI::Enum.new([:invalid, 0])
-
-    class ChainedStruct < FFI::Struct
-      layout :next, :pointer,
-             :s_type, SType
-    end
-  end
+begin
+  require "dawn"
+rescue StandardError => e
+  DAWN_TOGGLES_RUNTIME_ERROR = e
 end
 
-require_relative "../../lib/dawn/native/enums_ext"
-require_relative "../../lib/dawn/native/structs_ext"
-require_relative "../../lib/dawn/toggles"
-
 RSpec.describe Dawn::Toggles do
+  before do
+    skip "requires Dawn shared library and runtime: #{DAWN_TOGGLES_RUNTIME_ERROR.message}" if defined?(DAWN_TOGGLES_RUNTIME_ERROR)
+  end
+
   it "builds a toggles descriptor" do
     toggles = described_class.new.enable(:skip_validation).disable(:turn_off_vsync)
     descriptor = toggles.to_descriptor

@@ -1,65 +1,54 @@
 # frozen_string_literal: true
 
 require_relative "../spec_helper"
+require_relative "../../lib/dawn/adapter"
+require_relative "../../lib/dawn/instance"
 
-module WGPU
-  class AsyncTask
-    def initialize(&block)
-      @block = block
-    end
-
-    def value
-      @block.call
-    end
-
-    def then(&block)
-      self.class.new do
-        block.call(value)
-      end
-    end
+class FakeAsyncTask
+  def initialize(&block)
+    @block = block
   end
 
-  class Instance
-    attr_reader :request_adapter_calls, :enumerate_adapters_calls
+  def value
+    @block.call
+  end
 
-    def initialize
-      @request_adapter_calls = []
-      @enumerate_adapters_calls = []
-    end
-
-    def request_adapter(**options)
-      @request_adapter_calls << options
-      :wgpu_adapter
-    end
-
-    def request_adapter_async(**options)
-      AsyncTask.new { request_adapter(**options) }
-    end
-
-    def enumerate_adapters(backends: nil)
-      @enumerate_adapters_calls << backends
-      %i[wgpu_adapter_a wgpu_adapter_b]
-    end
-
-    def enumerate_adapters_async(backends: nil)
-      AsyncTask.new { enumerate_adapters(backends: backends) }
-    end
-
-    def process_events
-      :processed
-    end
-
-    def release
-      :released
+  def then(&block)
+    self.class.new do
+      block.call(value)
     end
   end
 end
 
-require_relative "../../lib/dawn/adapter"
-require_relative "../../lib/dawn/instance"
+class FakeWGPUInstance
+  attr_reader :request_adapter_calls, :enumerate_adapters_calls
+
+  def initialize
+    @request_adapter_calls = []
+    @enumerate_adapters_calls = []
+  end
+
+  def request_adapter(**options)
+    @request_adapter_calls << options
+    :wgpu_adapter
+  end
+
+  def request_adapter_async(**options)
+    FakeAsyncTask.new { request_adapter(**options) }
+  end
+
+  def enumerate_adapters(backends: nil)
+    @enumerate_adapters_calls << backends
+    %i[wgpu_adapter_a wgpu_adapter_b]
+  end
+
+  def enumerate_adapters_async(backends: nil)
+    FakeAsyncTask.new { enumerate_adapters(backends: backends) }
+  end
+end
 
 RSpec.describe Dawn::Instance do
-  let(:wgpu_instance) { WGPU::Instance.new }
+  let(:wgpu_instance) { FakeWGPUInstance.new }
   subject(:instance) do
     described_class.allocate.tap do |obj|
       obj.instance_variable_set(:@wgpu_instance, wgpu_instance)

@@ -125,7 +125,7 @@ instance.release
 | Dawn extension enums (`SType`, `FeatureName`) | Implemented | `Dawn::STypeExt`, `Dawn::FeatureNameExt` |
 | Dawn chained extension structs | Implemented | Toggle/internal usage/SPIR-V options/base host-mapped pointer structs |
 | Dawn proc helpers | Implemented | `Dawn::Native.get_procs`, `Dawn::Native.set_procs!` |
-| Integration tests with real Dawn runtime | Partial | Specs are scaffolded; runtime-dependent tests are pending |
+| Integration tests with real Dawn runtime | Implemented | Compute and offscreen triangle specs run when Dawn is available and skip otherwise |
 
 ## Examples
 
